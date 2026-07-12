@@ -1,4 +1,3 @@
-/* Custom CSS Properties for Themes & Layouts */
 :root {
     --bg-color: #121212;
     --surface-color: #1e1e1e;
@@ -21,7 +20,6 @@
     --shadow: rgba(0, 0, 0, 0.15);
 }
 
-/* Global resets and homepage centering */
 body {
     margin: 0;
     padding: 0;
@@ -39,7 +37,6 @@ body {
     transition: background 0.3s, color 0.3s;
 }
 
-/* Settings Bar (Top Right) */
 .settings-bar {
     position: absolute;
     top: 15px;
@@ -54,15 +51,12 @@ body {
     border-radius: 20px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
-/* Homepage Container Layout */
 .container {
     text-align: center;
 }
 
-/* Huge, mobile-friendly button for the homepage */
 .game-btn {
     background-color: var(--accent-color);
     color: #000000;
@@ -77,13 +71,7 @@ body {
     text-decoration: none;
     display: inline-block;
 }
-.game-btn:active {
-    transform: scale(0.95);
-}
 
-/* ==========================================================================
-   GAME INTERFACE LAYOUT (Keeps your gameplay perfectly square and working!)
-   ========================================================================== */
 .game-header {
     display: flex;
     justify-content: space-between;
@@ -107,12 +95,6 @@ body {
     font-weight: bold;
 }
 
-#score {
-    font-size: 20px;
-    font-weight: bold;
-}
-
-/* Rigid Fixed Box Sizing to stop distortion on any phone model */
 .canvas-container {
     width: 290px;
     height: 290px;
@@ -126,24 +108,22 @@ body {
 canvas {
     width: 100%;
     height: 100%;
-    background-color: transparent;
     display: block;
 }
 
-/* Pause Overlay Screen Layout */
 .pause-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.92);
+    background: rgba(0, 0, 0, 0.94);
     display: none; 
     flex-direction: column;
     justify-content: center;
     align-items: center;
     gap: 10px;
-    z-index: 10;
+    z-index: 100;
     padding: 15px;
     box-sizing: border-box;
 }
@@ -170,7 +150,6 @@ canvas {
 .menu-btn.restart     { background-color: var(--button-bg); color: var(--button-text); }
 .menu-btn.exit        { background-color: var(--danger-color); color: #fff; }
 
-/* Leaderboard Specific Layout Components */
 .leaderboard-list {
     width: 100%;
     max-width: 240px;
@@ -188,7 +167,6 @@ canvas {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
-    font-weight: bold;
 }
 
 .leaderboard-item.current-player {
@@ -204,7 +182,6 @@ canvas {
     font-style: italic;
 }
 
-/* D-PAD Area */
 .controls {
     width: 140px;
     height: 140px;
@@ -224,13 +201,7 @@ canvas {
     display: flex;
     align-items: center;
     justify-content: center;
-    user-select: none;
-    -webkit-user-select: none;
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-.btn:active {
-    background-color: var(--accent-color);
-    color: #000;
 }
 
 #up-btn    { top: 0; left: 48px; }
@@ -238,7 +209,6 @@ canvas {
 #right-btn { top: 48px; right: 0; }
 #down-btn  { bottom: 0; left: 48px; }
 
-/* Desktop view resizing */
 @media (min-width: 768px) {
     .controls { display: none; }
     .canvas-container { width: 400px; height: 400px; }
