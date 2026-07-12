@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Snake Arena</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
 
@@ -67,19 +68,20 @@
         }
 
         function clearCanvas() {
-            ctx.fillStyle = "#000000";
+            // Uses computed style to grab current theme's surface color dynamically
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--surface-color').trim() || "#000000";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
         function drawSnake() {
-            ctx.fillStyle = "#00ff00"; 
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || "#00ff00"; 
             for(let i = 0; i < snake.length; i++) {
                 ctx.fillRect(snake[i].x * gridSize, snake[i].y * gridSize, gridSize - 1, gridSize - 1);
             }
         }
 
         function drawFood() {
-            ctx.fillStyle = "#ff0000"; 
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--danger-color').trim() || "#ff0000"; 
             ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
         }
 
