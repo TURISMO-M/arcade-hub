@@ -11,7 +11,10 @@
 
     <div class="game-header">
         <button id="top-pause-btn" class="pause-trigger-btn">⏸ Pause</button>
-        <div id="score">Score: 0</div>
+        <div class="score-container">
+            <span id="score">Score: 0</span> | 
+            <span id="high-score">Best: 0</span>
+        </div>
     </div>
     
     <div class="canvas-container">
@@ -20,8 +23,17 @@
         <div id="pauseMenu" class="pause-overlay">
             <div class="pause-title">GAME PAUSED</div>
             <button class="menu-btn resume" id="resume-btn">Resume Game</button>
+            <button class="menu-btn leaderboard" id="view-leaderboard-btn">🏆 Global Leaderboard</button>
             <button class="menu-btn restart" id="restart-btn">Restart</button>
             <button class="menu-btn exit" id="exit-btn">Exit to Hub</button>
+        </div>
+
+        <div id="leaderboardMenu" class="pause-overlay">
+            <div class="pause-title">🏆 GLOBAL TOP 5</div>
+            <div class="leaderboard-list" id="leaderboard-list">
+                <div class="leaderboard-itemLoading">Loading global scores...</div>
+            </div>
+            <button class="menu-btn exit" id="close-leaderboard-btn">Back</button>
         </div>
     </div>
 
@@ -33,12 +45,13 @@
     </div>
 
     <script>
-        // Set Theme immediately based on what was saved on the home page
         document.body.className = localStorage.getItem('theme') || 'dark-theme';
 
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const pauseMenu = document.getElementById("pauseMenu");
+        const leaderboardMenu = document.getElementById("leaderboardMenu");
+        const leaderboardList = document.getElementById("leaderboard-list");
 
         const gridSize = 15; 
         const tileCount = canvas.width / gridSize;
@@ -51,13 +64,64 @@
         let gameInterval;
         let isPaused = false;
 
+        // --- NICKNAME & HIGH SCORE PERSISTENCE ---
+        let playerBest = parseInt(localStorage.getItem('snake_personal_best')) || 0;
+        document.getElementById("high-score").innerText = "Best: " + playerBest;
+
+        let playerNickname = localStorage.getItem('snake_nickname');
+        if (!playerNickname) {
+            playerNickname = prompt("Enter a nickname for the web leaderboards:", "Player_" + Math.floor(Math.random()*1000));
+            if (!playerNickname || playerNickname.trim() === "") playerNickname = "Anonymous";
+            localStorage.setItem('snake_nickname', playerNickname.trim());
+        }
+
+        // --- MOCK GLOBAL LEADERBOARD DATA ---
+        // Once you link Firebase/Supabase, you will fetch real database data here instead!
+        let mockGlobalScores = [
+            { name: "ProGamer", score: 240 },
+            { name: "SnakeMaster", score: 180 },
+            { name: playerNickname, score: playerBest }, // Shows current player's stats dynamically
+            { name: "Alpha", score: 50 },
+            { name: "Rex", score: 20 }
+        ];
+
+        function displayGlobalLeaderboard() {
+            leaderboardList.innerHTML = "";
+            // Sort high to low
+            mockGlobalScores.sort((a, b) => b.score - a.score);
+            
+            mockGlobalScores.slice(0, 5).forEach((entry, index) => {
+                const item = document.createElement("div");
+                item.className = "leaderboard-item";
+                if (entry.name === playerNickname) item.classList.add("current-player");
+                item.innerHTML = `<span>${index + 1}. ${entry.name}</span><span>${entry.score}</span>`;
+                leaderboardList.appendChild(item);
+            });
+        }
+
+        function handleGameEnd() {
+            alert("Game Over! Score: " + score);
+            
+            // Check and update Personal High Score
+            if (score > playerBest) {
+                playerBest = score;
+                localStorage.setItem('snake_personal_best', playerBest);
+                document.getElementById("high-score").innerText = "Best: " + playerBest;
+                alert("🎉 New Personal Record!");
+                
+                // Update local version of global list for preview
+                let myEntry = mockGlobalScores.find(e => e.name === playerNickname);
+                if (myEntry) myEntry.score = playerBest;
+            }
+            resetGame();
+        }
+
         function drawGame() {
             if (isPaused) return; 
 
             updateSnakePosition();
             if (checkGameOver()) {
-                alert("Game Over! Score: " + score);
-                resetGame();
+                handleGameEnd();
                 return;
             }
             checkFoodCollision();
@@ -68,20 +132,19 @@
         }
 
         function clearCanvas() {
-            // Uses computed style to grab current theme's surface color dynamically
-            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--surface-color').trim() || "#000000";
+            ctx.fillStyle = "#000000";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
         function drawSnake() {
-            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || "#00ff00"; 
+            ctx.fillStyle = "#00ff00"; 
             for(let i = 0; i < snake.length; i++) {
                 ctx.fillRect(snake[i].x * gridSize, snake[i].y * gridSize, gridSize - 1, gridSize - 1);
             }
         }
 
         function drawFood() {
-            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--danger-color').trim() || "#ff0000"; 
+            ctx.fillStyle = "#ff0000"; 
             ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
         }
 
@@ -126,9 +189,10 @@
             isPaused = !isPaused;
             if (isPaused) {
                 clearTimeout(gameInterval);
-                pauseMenu.style.display = "flex"; // Show menu
+                pauseMenu.style.display = "flex";
             } else {
-                pauseMenu.style.display = "none"; // Hide menu
+                pauseMenu.style.display = "none";
+                leaderboardMenu.style.display = "none";
                 drawGame();
             }
         }
@@ -141,6 +205,7 @@
             generateFood();
             isPaused = false;
             pauseMenu.style.display = "none";
+            leaderboardMenu.style.display = "none";
             drawGame();
         }
 
@@ -183,6 +248,17 @@
         bindButton("top-pause-btn", togglePause);
 
         document.getElementById("resume-btn").addEventListener("click", togglePause);
+        
+        document.getElementById("view-leaderboard-btn").addEventListener("click", () => {
+            pauseMenu.style.display = "none";
+            leaderboardMenu.style.display = "flex";
+            displayGlobalLeaderboard();
+        });
+
+        document.getElementById("close-leaderboard-btn").addEventListener("click", () => {
+            leaderboardMenu.style.display = "none";
+            pauseMenu.style.display = "flex";
+        });
         
         document.getElementById("restart-btn").addEventListener("click", () => {
             if (confirm("Are you sure you want to Restart the Game?")) {
