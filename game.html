@@ -103,10 +103,8 @@
         let playerBest = parseInt(localStorage.getItem('snake_personal_best')) || 0;
         document.getElementById("high-score").innerText = "Best: " + playerBest;
 
-        // Apply Custom Display Layout and Positions
         function refreshControllerDesign() {
             document.body.className = localStorage.getItem('theme') || 'dark-theme';
-            
             const mode = localStorage.getItem('control_type') || 'dpad';
             const scale = localStorage.getItem('control_scale') || '1.0';
             const spacingY = localStorage.getItem('control_y') || '15';
@@ -120,7 +118,7 @@
             }
         }
 
-        // Live credentials implementation 
+        // Fresh configuration linked below
         const firebaseConfig = {
             apiKey: "AIzaSyCvHb-UwPMP8QKaaAswN_pnICOCiS1VjPA",
             authDomain: "snake-arcade-e8b15.firebaseapp.com",
@@ -128,7 +126,8 @@
             projectId: "snake-arcade-e8b15",
             storageBucket: "snake-arcade-e8b15.firebasestorage.app",
             messagingSenderId: "854659297329",
-            appId: "1:854659297329:web:033647425b344ff35ba510"
+            appId: "1:854659297329:web:3392f6f1487de3ff5ba510",
+            measurementId: "G-0NQVJERB3J"
         };
         
         firebase.initializeApp(firebaseConfig);
@@ -265,7 +264,6 @@
             if (dir === 'RIGHT' && dx !== -1) { dx = 1; dy = 0; }
         }
 
-        // Keyboard inputs
         window.addEventListener("keydown", e => {
             if (e.key === "Escape" || e.key === " ") togglePause();
             if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") changeDirection('UP');
@@ -274,9 +272,6 @@
             if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") changeDirection('RIGHT');
         });
 
-        // ==========================================================================
-        // DYNAMIC SCREEN SWIPE INPUT DETECTOR GESTURES
-        // ==========================================================================
         let touchStartX = 0;
         let touchStartY = 0;
 
@@ -290,13 +285,11 @@
             if(localStorage.getItem('control_type') !== 'swipe') return;
             let touchEndX = e.changedTouches[0].screenX;
             let touchEndY = e.changedTouches[0].screenY;
-            
             let diffX = touchEndX - touchStartX;
             let diffY = touchEndY - touchStartY;
             
-            // Determine largest motion vector path axis
             if (Math.abs(diffX) > Math.abs(diffY)) {
-                if(Math.abs(diffX) > 30) { // Threshold gap boundary min
+                if(Math.abs(diffX) > 30) {
                     if (diffX > 0) changeDirection('RIGHT');
                     else changeDirection('LEFT');
                 }
@@ -322,8 +315,8 @@
         bindButton("left-btn", "LEFT");
         bindButton("right-btn", "RIGHT");
         document.getElementById("top-pause-btn").addEventListener("click", togglePause);
-
         document.getElementById("resume-btn").addEventListener("click", togglePause);
+
         document.getElementById("view-leaderboard-btn").addEventListener("click", () => {
             pauseMenu.style.display = "none";
             leaderboardMenu.style.display = "flex";
@@ -334,7 +327,6 @@
             pauseMenu.style.display = "flex";
         });
 
-        // Settings actions in game loop
         document.getElementById("view-settings-btn").addEventListener("click", () => {
             pauseMenu.style.display = "none";
             controlTypeSelect.value = localStorage.getItem('control_type') || 'dpad';
