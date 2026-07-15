@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Game Hub</title>
+    <title>Arcade Hub</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -22,6 +22,8 @@
             <div id="player-profile" style="display: none; font-size: 16px; font-weight: bold;">
                 Welcome, <span id="player-name" style="color: var(--accent-color);">Player</span>!<br>
                 <span id="personal-best" style="font-size: 14px; opacity: 0.8;">Best Score: 0</span>
+                <br>
+                <button id="logout-btn" style="margin-top: 8px; background: transparent; border: 1px solid var(--danger-color); color: var(--danger-color); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Sign Out</button>
             </div>
         </div>
 
@@ -45,7 +47,6 @@
             <label>Visual Interface Mode:</label>
             <button id="theme-toggle" class="icon-btn" style="width:100%; text-align:center;">🌓 Switch Theme</button>
         </div>
-
         <div class="setting-row">
             <label>Input Control Mapping:</label>
             <select id="control-type-select">
@@ -53,12 +54,10 @@
                 <option value="swipe">Full-Screen Touch Swipe</option>
             </select>
         </div>
-
         <div class="setting-row">
             <label>Controller Dimensions (Scale):</label>
             <input type="range" id="control-scale-slider" min="0.6" max="1.5" step="0.05" value="1.0">
         </div>
-
         <div class="setting-row">
             <label>Vertical Position Alignment:</label>
             <input type="range" id="control-y-slider" min="0" max="150" step="5" value="15">
@@ -69,8 +68,6 @@
 
     <script>
         const body = document.body;
-        
-        // Settings Sync
         const settingsMenu = document.getElementById('settingsMenu');
         const themeToggle = document.getElementById('theme-toggle');
         const controlTypeSelect = document.getElementById('control-type-select');
@@ -106,7 +103,7 @@
             settingsMenu.style.display = 'none';
         });
 
-        // Live credentials configuration block
+        // Fresh configuration linked below
         const firebaseConfig = {
             apiKey: "AIzaSyCvHb-UwPMP8QKaaAswN_pnICOCiS1VjPA",
             authDomain: "snake-arcade-e8b15.firebaseapp.com",
@@ -114,7 +111,8 @@
             projectId: "snake-arcade-e8b15",
             storageBucket: "snake-arcade-e8b15.firebasestorage.app",
             messagingSenderId: "854659297329",
-            appId: "1:854659297329:web:033647425b344ff35ba510"
+            appId: "1:854659297329:web:3392f6f1487de3ff5ba510",
+            measurementId: "G-0NQVJERB3J"
         };
 
         firebase.initializeApp(firebaseConfig);
@@ -122,6 +120,7 @@
         const database = firebase.database();
 
         const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
         const playerProfile = document.getElementById('player-profile');
         const playerName = document.getElementById('player-name');
         const personalBestText = document.getElementById('personal-best');
@@ -130,13 +129,23 @@
 
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
             auth.signInWithRedirect(provider);
         });
 
-        auth.getRedirectResult().catch(err => {
-            if (err.code !== 'auth/redirect-cancelled-by-user') {
-                alert("Sign in error: " + err.message);
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                localStorage.removeItem('snake_personal_best');
+                window.location.reload();
+            });
+        });
+
+        auth.getRedirectResult().then(result => {
+            if (result.user) {
+                console.log("Redirect login successful:", result.user.displayName);
             }
+        }).catch(err => {
+            console.error("Authentication Processing Error:", err.message);
         });
 
         auth.onAuthStateChanged(user => {
