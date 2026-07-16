@@ -126,7 +126,7 @@
             settingsMenu.style.display = 'none';
         });
 
-        // Your exact Firebase config
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyCvHb-UwPMP8QKaaAswN_pnICOCiS1VjPA",
             authDomain: "snake-arcade-e8b15.firebaseapp.com",
@@ -151,10 +151,15 @@
         const leaderboardList = document.getElementById('leaderboard-list');
         const userBadge = document.getElementById('user-badge');
 
+        // FIXED: Switched to Pop-up sign in to prevent token drop on GitHub Pages paths
         loginBtn.addEventListener('click', () => {
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.setCustomParameters({ prompt: 'select_account' });
-            auth.signInWithRedirect(provider);
+            auth.signInWithPopup(provider).then(result => {
+                console.log("Popup login successful:", result.user.displayName);
+            }).catch(err => {
+                console.error("Authentication Pop-up Error:", err.message);
+            });
         });
 
         logoutBtn.addEventListener('click', () => {
@@ -164,23 +169,13 @@
             });
         });
 
-        auth.getRedirectResult().then(result => {
-            if (result.user) {
-                console.log("Redirect login successful:", result.user.displayName);
-            }
-        }).catch(err => {
-            console.error("Authentication Processing Error:", err.message);
-        });
-
-        // Keep watch of auth state and update UI
+        // Track and manage layout states automatically
         auth.onAuthStateChanged(user => {
             if (user) {
-                // User is Signed In
-                loginBtn.style.display = 'none'; // Hide "Sign in with Google" button
+                loginBtn.style.display = 'none'; 
                 playerProfile.style.display = 'block';
                 playerName.innerText = user.displayName;
 
-                // Show top-left email badge
                 userBadge.innerText = user.email;
                 userBadge.style.display = 'block';
 
@@ -191,11 +186,8 @@
                     personalBestText.innerText = "Best Score: " + record;
                 });
             } else {
-                // User is Signed Out
-                loginBtn.style.display = 'block'; // Show "Sign in with Google" button
+                loginBtn.style.display = 'block'; 
                 playerProfile.style.display = 'none';
-                
-                // Hide top-left email badge
                 userBadge.style.display = 'none';
                 userBadge.innerText = '';
             }
