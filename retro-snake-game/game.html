@@ -32,42 +32,47 @@
         <div id="pauseMenu" class="pause-overlay">
             <div class="pause-title">GAME PAUSED</div>
             <button class="menu-btn resume" id="resume-btn">Resume Game</button>
-            <button class="menu-btn leaderboard" id="game-leaderboard-btn">Leaderboard</button>
-            <button class="menu-btn restart" id="open-settings-btn">Settings</button>
-            <button class="menu-btn exit" id="exit-btn">Exit to Hub</button>
+            <button class="menu-btn leaderboard" id="view-settings-btn">⚙️ Control Settings</button>
+            <button class="menu-btn leaderboard" id="view-leaderboard-btn">🏆 Global Leaderboard</button>
+            <button class="menu-btn restart" id="restart-btn">Restart</button>
+            <button class="menu-btn exit" id="exit-btn">Exit to Menu</button>
         </div>
 
         <div id="gameSettingsMenu" class="pause-overlay">
-            <div class="pause-title">SETTINGS</div>
-            
+            <div class="pause-title">⚙️ CONTROLS</div>
             <div class="setting-row">
-                <label>Control Layout</label>
+                <label>Theme Option:</label>
+                <button id="theme-toggle" class="icon-btn" style="width:100%; text-align:center;">🌓 Toggle Theme</button>
+            </div>
+            <div class="setting-row">
+                <label>Input System Type:</label>
                 <select id="control-type-select">
-                    <option value="dpad">Tactile D-Pad</option>
-                    <option value="swipe">Gesture Swipe</option>
+                    <option value="dpad">On-Screen D-PAD Box</option>
+                    <option value="swipe">Full-Screen Touch Swipe</option>
                 </select>
             </div>
-
             <div class="setting-row">
-                <label>Control Scale</label>
-                <input type="range" id="control-scale-slider" min="0.7" max="1.4" step="0.1" value="1.0">
+                <label>Controller Dimensions Scale:</label>
+                <input type="range" id="control-scale-slider" min="0.6" max="1.5" step="0.05" value="1.0">
             </div>
-
             <div class="setting-row">
-                <label>Vertical Position</label>
-                <input type="range" id="control-y-slider" min="0" max="60" step="5" value="15">
+                <label>Vertical Position Move:</label>
+                <input type="range" id="control-y-slider" min="0" max="150" step="5" value="15">
             </div>
+            <button class="menu-btn resume" id="close-settings-btn">Save Rules</button>
+        </div>
 
-            <div class="setting-row" style="margin-top: 10px;">
-                <button class="icon-btn" id="theme-toggle" style="width: 100%;">Toggle Theme 🌓</button>
+        <div id="leaderboardMenu" class="pause-overlay">
+            <div class="pause-title">🏆 GLOBAL TOP 5</div>
+            <div class="leaderboard-list" id="leaderboard-list">
+                <div class="leaderboard-itemLoading">Connecting...</div>
             </div>
-
-            <button class="menu-btn resume" id="close-settings-btn" style="margin-top: 15px;">Save & Back</button>
+            <button class="menu-btn exit" id="close-leaderboard-btn">Back</button>
         </div>
     </div>
 
-    <div class="controls-wrapper" id="controls-wrapper">
-        <div class="controls" id="controls-container">
+    <div class="controls-wrapper" id="controls-wrapper-frame">
+        <div class="controls" id="dpad-box">
             <button class="btn" id="up-btn">▲</button>
             <button class="btn" id="left-btn">◀</button>
             <button class="btn" id="right-btn">▶</button>
@@ -76,22 +81,41 @@
     </div>
 
     <script>
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const database = firebase.database();
+
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const scoreElement = document.getElementById("score");
         const highScoreElement = document.getElementById("high-score");
         const pauseMenu = document.getElementById("pauseMenu");
         const gameSettingsMenu = document.getElementById("gameSettingsMenu");
-        const countdownOverlay = document.getElementById("countdownOverlay");
-        const countdownNumber = document.getElementById("countdownNumber");
+        const leaderboardMenu = document.getElementById("leaderboardMenu");
+        const leaderboardList = document.getElementById("leaderboard-list");
         const topPauseBtn = document.getElementById("top-pause-btn");
         const bgMusic = document.getElementById("bg-music");
+
+        const countdownOverlay = document.getElementById("countdownOverlay");
+        const countdownNumber = document.getElementById("countdownNumber");
 
         const controlTypeSelect = document.getElementById("control-type-select");
         const controlScaleSlider = document.getElementById("control-scale-slider");
         const controlYSlider = document.getElementById("control-y-slider");
-        const controlsWrapper = document.getElementById("controls-wrapper");
-        const controlsContainer = document.getElementById("controls-container");
+        const controlsWrapperFrame = document.getElementById("controls-wrapper-frame");
+        const dpadBox = document.getElementById("dpad-box");
         const themeToggle = document.getElementById("theme-toggle");
 
         const gridSize = 15;
@@ -105,8 +129,8 @@
         let highScore = localStorage.getItem("snake_high_score") || 0;
         let isPaused = false;
         let isCountingDown = false;
-        let gameInterval = null;
         let gameSpeed = 100;
+        let gameInterval = null;
 
         highScoreElement.textContent = `Best: ${highScore}`;
 
@@ -122,16 +146,12 @@
                             bgMusic.currentTime = Math.random() * bgMusic.duration;
                         }, { once: true });
                     }
-                }).catch(err => {
-                    console.log("Audio playback blocked until user gesture.", err);
-                });
+                }).catch(() => {});
             }
         }
 
         function stopBgMusic() {
-            if (bgMusic) {
-                bgMusic.pause();
-            }
+            if (bgMusic) bgMusic.pause();
         }
 
         function refreshControllerDesign() {
@@ -140,11 +160,11 @@
             const savedY = localStorage.getItem('control_y') || '15';
 
             if (savedType === 'swipe') {
-                controlsWrapper.style.display = 'none';
+                controlsWrapperFrame.style.display = 'none';
             } else {
-                controlsWrapper.style.display = 'flex';
-                controlsWrapper.style.marginTop = `${savedY}px`;
-                controlsContainer.style.transform = `scale(${savedScale})`;
+                controlsWrapperFrame.style.display = 'flex';
+                controlsWrapperFrame.style.marginTop = `${savedY}px`;
+                dpadBox.style.transform = `scale(${savedScale})`;
             }
 
             const currentTheme = localStorage.getItem('theme') || 'dark-theme';
@@ -154,10 +174,19 @@
         function drawGame() {
             if (isPaused || isCountingDown) return;
 
-            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            let headX = snake[0].x + dx;
+            let headY = snake[0].y + dy;
+
+            // RESTORED: Wall-wrapping functionality (Snake teleports to other side)
+            if (headX < 0) headX = tileCount - 1;
+            if (headX >= tileCount) headX = 0;
+            if (headY < 0) headY = tileCount - 1;
+            if (headY >= tileCount) headY = 0;
+
+            const head = { x: headX, y: headY };
 
             if (dx !== 0 || dy !== 0) {
-                if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || collisionSelf(head)) {
+                if (collisionSelf(head)) {
                     alert(`Game Over! Final Score: ${score}`);
                     resetGame();
                     return;
@@ -182,17 +211,12 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.fillStyle = "#ff3333";
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = "#ff3333";
             ctx.fillRect(food.x * gridSize + 1, food.y * gridSize + 1, gridSize - 2, gridSize - 2);
 
-            ctx.shadowBlur = 6;
-            ctx.shadowColor = "#00ff00";
             snake.forEach((part, index) => {
                 ctx.fillStyle = index === 0 ? "#00ff00" : "#00cc00";
                 ctx.fillRect(part.x * gridSize + 1, part.y * gridSize + 1, gridSize - 2, gridSize - 2);
             });
-            ctx.shadowBlur = 0;
         }
 
         function collisionSelf(head) {
@@ -224,13 +248,12 @@
         function triggerResumeCountdown() {
             pauseMenu.style.display = "none";
             gameSettingsMenu.style.display = "none";
+            leaderboardMenu.style.display = "none";
             isCountingDown = true;
             countdownOverlay.style.display = "flex";
 
             let count = 3;
             countdownNumber.textContent = count;
-            
-            // Re-trigger CSS keyframe animation
             countdownNumber.style.animation = 'none';
             countdownNumber.offsetHeight;
             countdownNumber.style.animation = 'bounceScale 1s ease-in-out infinite';
@@ -275,7 +298,7 @@
         document.getElementById("left-btn").addEventListener("click", () => { if (!isPaused && !isCountingDown && dx === 0) { dx = -1; dy = 0; } });
         document.getElementById("right-btn").addEventListener("click", () => { if (!isPaused && !isCountingDown && dx === 0) { dx = 1; dy = 0; } });
 
-        document.getElementById("open-settings-btn").addEventListener("click", () => {
+        document.getElementById("view-settings-btn").addEventListener("click", () => {
             pauseMenu.style.display = "none";
             controlTypeSelect.value = localStorage.getItem('control_type') || 'dpad';
             controlScaleSlider.value = localStorage.getItem('control_scale') || '1.0';
@@ -301,6 +324,10 @@
             refreshControllerDesign();
             gameSettingsMenu.style.display = "none";
             pauseMenu.style.display = "flex";
+        });
+
+        document.getElementById("restart-btn").addEventListener("click", () => {
+            if (confirm("Restart game?")) resetGame();
         });
 
         document.getElementById("exit-btn").addEventListener("click", () => {
