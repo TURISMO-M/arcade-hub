@@ -34,61 +34,42 @@ body {
     box-sizing: border-box;
     overflow: hidden;
     touch-action: none;
-    position: relative;
     transition: background 0.3s, color 0.3s;
 }
 
-/* =========================================================================
-   TOP ALIGNED PLAYER NAME DISPLAY (NON-BUTTON LOOK)
-   ========================================================================== */
-.top-player-name {
+/* Top-Left Back Navigation Arrow */
+.hub-back-nav {
     position: absolute;
     top: 15px;
+    left: 15px;
+    z-index: 25;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    border: 2px solid var(--button-bg);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+/* Top-Center Header Banner (Non-button Text Display) */
+.user-badge-header {
+    position: absolute;
+    top: 18px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 15px;
     font-weight: bold;
     color: var(--accent-color);
-    letter-spacing: 1px;
     z-index: 20;
-    text-shadow: 0 0 8px var(--shadow);
-    pointer-events: none; /* Disables click interactions so it doesn't feel or act like a button */
-    user-select: none;
-}
-
-/* =========================================================================
-   GEMINI-STYLE BOTTOM AMBIENT GLOW EFFECT
-   ========================================================================== */
-.bottom-ambient-glow {
-    position: absolute;
-    bottom: -60px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 140%;
-    height: 180px;
-    border-radius: 50% 50% 0 0;
-    background: radial-gradient(
-        ellipse at bottom, 
-        rgba(0, 255, 128, 0.35) 0%, 
-        rgba(0, 200, 255, 0.25) 35%, 
-        rgba(150, 0, 255, 0.15) 65%, 
-        transparent 80%
-    );
-    filter: blur(25px);
-    pointer-events: none;
-    z-index: 1;
-    animation: ambientPulse 4s ease-in-out infinite alternate;
-}
-
-@keyframes ambientPulse {
-    0% {
-        opacity: 0.7;
-        transform: translateX(-50%) scaleY(0.9);
-    }
-    100% {
-        opacity: 1;
-        transform: translateX(-50%) scaleY(1.15);
-    }
+    display: none;
+    text-align: center;
+    letter-spacing: 0.5px;
+    pointer-events: none; /* Disables button interaction behaviors */
 }
 
 .settings-bar {
@@ -102,36 +83,37 @@ body {
     background-color: var(--surface-color);
     color: var(--text-color);
     border: 2px solid var(--button-bg);
-    padding: 8px 12px;
+    padding: 8px 16px;
     border-radius: 20px;
-    font-size: 13px;
-    font-weight: bold;
+    font-weight: 600;
     cursor: pointer;
 }
 
-.menu-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 10;
+.container {
+    text-align: center;
 }
 
-.title {
-    font-size: 32px;
+.game-btn {
+    background-color: var(--accent-color);
+    color: #000000;
+    border: none;
+    padding: 20px 40px; 
+    font-size: 24px;    
     font-weight: bold;
-    margin-bottom: 25px;
-    letter-spacing: 2px;
-    color: var(--accent-color);
-    text-shadow: 0 0 10px var(--shadow);
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px var(--shadow);
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .game-header {
-    width: 300px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 290px;
     margin-bottom: 10px;
-    z-index: 10;
 }
 
 .pause-trigger-btn {
@@ -140,57 +122,29 @@ body {
     border: 2px solid var(--button-bg);
     padding: 6px 12px;
     border-radius: 8px;
-    cursor: pointer;
     font-weight: bold;
-    font-size: 13px;
+    cursor: pointer;
 }
 
 .score-container {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
 }
 
 .canvas-container {
+    width: 290px;
+    height: 290px;
     position: relative;
-    width: 300px;
-    height: 300px;
+    border: 4px solid #333;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
 
 canvas {
-    background-color: #000;
-    display: block;
-    border-radius: 4px;
-}
-
-.countdown-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(2px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 25;
-    border-radius: 4px;
-    pointer-events: none;
-}
-
-.countdown-number {
-    font-size: 72px;
-    font-weight: 900;
-    color: #00ff00;
-    text-shadow: 0 0 12px #00ff00, 0 0 30px #00ff00;
-    animation: bounceScale 1s ease-in-out infinite;
-}
-
-@keyframes bounceScale {
-    0% { transform: scale(0.2); opacity: 0; }
-    40% { transform: scale(1.15); opacity: 1; }
-    80% { transform: scale(1.0); opacity: 1; }
-    100% { transform: scale(1.3); opacity: 0; }
+    display: block;
 }
 
 .pause-overlay {
@@ -199,62 +153,69 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(4px);
-    display: none;
+    background: rgba(0, 0, 0, 0.94);
+    display: none; 
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    z-index: 20;
-    border-radius: 4px;
-    overflow-y: auto;
-    padding: 10px 0;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+    padding: 15px;
+    box-sizing: border-box;
 }
 
 .pause-title {
-    font-size: 22px;
+    color: #ffffff;
+    font-size: 20px;
     font-weight: bold;
-    margin-bottom: 12px;
-    letter-spacing: 2px;
-    color: var(--accent-color);
-}
-
-.settings-tab-header {
-    font-size: 12px;
-    font-weight: bold;
-    color: var(--accent-color);
+    margin-bottom: 5px;
     letter-spacing: 1px;
-    margin: 8px 0 4px 0;
-    width: 90%;
-    max-width: 240px;
-    border-bottom: 1px solid var(--button-bg);
 }
 
 .menu-btn {
-    width: 180px;
+    width: 170px;
     padding: 10px;
-    margin: 6px 0;
-    background-color: var(--surface-color);
-    border-radius: 8px;
     font-size: 14px;
     font-weight: bold;
+    border: none;
+    border-radius: 8px;
     cursor: pointer;
-    transition: transform 0.1s;
-    text-align: center;
 }
-
-.menu-btn:active { transform: translateY(2px); }
-
-.menu-btn.resume { border: 2px solid #28a745; color: #28a745; }
-.menu-btn.leaderboard { border: 2px solid #17a2b8; color: #17a2b8; }
-.menu-btn.restart { border: 2px solid #ffc107; color: #ffc107; }
-.menu-btn.exit { border: 2px solid #dc3545; color: #dc3545; }
+.menu-btn.resume      { background-color: var(--accent-color); color: #000; }
+.menu-btn.leaderboard { background-color: #cca000; color: #000; }
+.menu-btn.restart     { background-color: var(--button-bg); color: var(--button-text); }
+.menu-btn.exit        { background-color: var(--danger-color); color: #fff; }
 
 .leaderboard-list {
-    width: 85%;
-    max-height: 140px;
-    overflow-y: auto;
-    margin-bottom: 15px;
+    width: 100%;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.leaderboard-item.current-player {
+    border: 2px solid var(--accent-color);
+    background: rgba(0, 255, 0, 0.15);
+}
+
+.leaderboard-itemLoading {
+    color: #aaaaaa;
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+    font-style: italic;
 }
 
 .controls-wrapper {
@@ -298,21 +259,25 @@ canvas {
     max-width: 240px;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
     margin-bottom: 8px;
-    text-align: left;
+    color: #ffffff;
+    font-size: 13px;
 }
 
-.setting-row label {
-    font-size: 11px;
-    opacity: 0.8;
-    margin-bottom: 3px;
-}
-
-.setting-row select, .setting-row input {
+.setting-row input, .setting-row select {
+    width: 100%;
     padding: 6px;
-    border-radius: 4px;
-    background: var(--bg-color);
-    color: var(--text-color);
-    border: 1px solid var(--button-bg);
-    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background: #222;
+    color: #fff;
+    box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+    .controls-wrapper { display: none; }
+    .canvas-container { width: 400px; height: 400px; }
+    .game-header { width: 400px; }
 }
