@@ -12,7 +12,12 @@
 </head>
 <body class="dark-theme">
 
-    <a href="../index.html" class="hub-back-nav">⬅ Hub</a>
+    <!-- XML/SVG Back Button Icon Top Left -->
+    <a href="../index.html" class="hub-back-nav" aria-label="Go Back">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="back-arrow-icon">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+        </svg>
+    </a>
 
     <div id="user-badge" class="user-badge-header"></div>
 
@@ -91,6 +96,7 @@
                 <input type="text" id="edit-username">
             </div>
             <button class="menu-btn resume" id="save-account-btn" style="width: 100%; padding: 8px; font-size: 13px; margin-top: 5px;">Update Account</button>
+            <button id="delete-account-btn" class="danger-btn" style="margin-top: 8px;">Delete Snake Account</button>
         </div>
 
         <div id="settings-auth-actions" style="width: 90%; max-width: 240px; text-align: center; margin-top: 15px; display: none;">
@@ -155,6 +161,7 @@
 
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
+        const deleteAccountBtn = document.getElementById('delete-account-btn');
         const playerProfile = document.getElementById('player-profile');
         const playerName = document.getElementById('player-name');
         const personalBestText = document.getElementById('personal-best');
@@ -179,9 +186,30 @@
             });
         });
 
+        deleteAccountBtn.addEventListener('click', () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const confirmDelete = confirm("Are you sure you want to delete your Snake Game Account? This will permanently delete your profile data and high scores.");
+            if (confirmDelete) {
+                // Delete user database profile & high scores
+                const userRef = database.ref('users/' + user.uid);
+                const scoreRef = database.ref('scores/' + user.uid);
+
+                Promise.all([userRef.remove(), scoreRef.remove()]).then(() => {
+                    localStorage.removeItem('snake_personal_best');
+                    alert("Your Snake Game profile and scores have been deleted.");
+                    auth.signOut().then(() => {
+                        window.location.reload();
+                    });
+                }).catch(err => {
+                    alert("Error deleting account: " + err.message);
+                });
+            }
+        });
+
         auth.onAuthStateChanged(user => {
             if (user) {
-                // Check database for complete user profile record
                 database.ref('users/' + user.uid).once('value', snapshot => {
                     const profile = snapshot.val();
                     if (!profile || !profile.username) {
