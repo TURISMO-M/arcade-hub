@@ -1,5 +1,5 @@
 :root {
-    --bg-color: #121212;
+    --bg-color: #000000;
     --surface-color: #1e1e1e;
     --text-color: #ffffff;
     --accent-color: #00ff00;
@@ -35,6 +35,38 @@ body {
     overflow: hidden;
     touch-action: none;
     transition: background 0.3s, color 0.3s;
+    position: relative;
+}
+
+/* Bottom blue glow matching Gemini interface */
+body.dark-theme::after {
+    content: "";
+    position: fixed;
+    bottom: -150px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140vw;
+    height: 400px;
+    background: radial-gradient(
+        ellipse at bottom, 
+        rgba(20, 50, 120, 0.45) 0%, 
+        rgba(10, 25, 70, 0.2) 50%, 
+        transparent 80%
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Ensure foreground elements remain above the glow */
+.container, 
+.canvas-container, 
+.game-header, 
+.controls-wrapper, 
+.hub-back-nav, 
+.settings-bar, 
+.user-badge-header {
+    position: relative;
+    z-index: 1;
 }
 
 /* Top-Left Back Navigation Arrow */
