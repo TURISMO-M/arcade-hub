@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="firebase-client.js"></script>
 </head>
 <body class="dark-theme">
 
@@ -144,21 +145,6 @@
             settingsMenu.style.display = 'none';
         });
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCvHb-UwPMP8QKaaAswN_pnICOCiS1VjPA",
-            authDomain: "snake-arcade-e8b15.firebaseapp.com",
-            databaseURL: "https://snake-arcade-e8b15-default-rtdb.firebaseio.com",
-            projectId: "snake-arcade-e8b15",
-            storageBucket: "snake-arcade-e8b15.firebasestorage.app",
-            messagingSenderId: "854659297329",
-            appId: "1:854659297329:web:3392f6f1487de3ff5ba510",
-            measurementId: "G-0NQVJERB3J"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const database = firebase.database();
-
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
         const deleteAccountBtn = document.getElementById('delete-account-btn');
@@ -171,159 +157,162 @@
         const settingsAuthActions = document.getElementById('settings-auth-actions');
         const accountSettingsBlock = document.getElementById('account-settings-block');
 
-        loginBtn.addEventListener('click', () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account' });
-            auth.signInWithPopup(provider).catch(err => {
-                console.error("Authentication Error:", err.message);
+        (async function initApp() {
+            const { auth, database, GoogleAuthProvider } = await window.initSnakeFirebase();
+
+            loginBtn.addEventListener('click', () => {
+                const provider = new GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                auth.signInWithPopup(provider).catch(err => {
+                    console.error("Authentication Error:", err.message);
+                });
             });
-        });
 
-        logoutBtn.addEventListener('click', () => {
-            auth.signOut().then(() => {
-                localStorage.removeItem('snake_personal_best');
-                window.location.reload();
-            });
-        });
-
-        deleteAccountBtn.addEventListener('click', () => {
-            const user = auth.currentUser;
-            if (!user) return;
-
-            const confirmDelete = confirm("Are you sure you want to delete your Snake Game Account? This will permanently delete your profile data and high scores.");
-            if (confirmDelete) {
-                // Delete user database profile & high scores
-                const userRef = database.ref('users/' + user.uid);
-                const scoreRef = database.ref('scores/' + user.uid);
-
-                Promise.all([userRef.remove(), scoreRef.remove()]).then(() => {
+            logoutBtn.addEventListener('click', () => {
+                auth.signOut().then(() => {
                     localStorage.removeItem('snake_personal_best');
-                    alert("Your Snake Game profile and scores have been deleted.");
-                    auth.signOut().then(() => {
-                        window.location.reload();
+                    window.location.reload();
+                });
+            });
+
+            deleteAccountBtn.addEventListener('click', () => {
+                const user = auth.currentUser;
+                if (!user) return;
+
+                const confirmDelete = confirm("Are you sure you want to delete your Snake Game Account? This will permanently delete your profile data and high scores.");
+                if (confirmDelete) {
+                    const userRef = database.ref('users/' + user.uid);
+                    const scoreRef = database.ref('scores/' + user.uid);
+
+                    Promise.all([userRef.remove(), scoreRef.remove()]).then(() => {
+                        localStorage.removeItem('snake_personal_best');
+                        alert("Your Snake Game profile and scores have been deleted.");
+                        auth.signOut().then(() => {
+                            window.location.reload();
+                        });
+                    }).catch(err => {
+                        alert("Error deleting account: " + err.message);
                     });
-                }).catch(err => {
-                    alert("Error deleting account: " + err.message);
-                });
-            }
-        });
+                }
+            });
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                database.ref('users/' + user.uid).once('value', snapshot => {
-                    const profile = snapshot.val();
-                    if (!profile || !profile.username) {
-                        document.getElementById('setup-display-name').value = user.displayName || '';
-                        accountSetupModal.style.display = 'flex';
-                    } else {
-                        updateProfileUI(profile.displayName, profile.username);
-                    }
-                });
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    database.ref('users/' + user.uid).once('value', snapshot => {
+                        const profile = snapshot.val();
+                        if (!profile || !profile.username) {
+                            document.getElementById('setup-display-name').value = user.displayName || '';
+                            accountSetupModal.style.display = 'flex';
+                        } else {
+                            updateProfileUI(profile.displayName, profile.username);
+                        }
+                    });
 
-                loginBtn.style.display = 'none'; 
-                playerProfile.style.display = 'block';
-                settingsAuthActions.style.display = 'block';
-                accountSettingsBlock.style.display = 'block';
+                    loginBtn.style.display = 'none';
+                    playerProfile.style.display = 'block';
+                    settingsAuthActions.style.display = 'block';
+                    accountSettingsBlock.style.display = 'block';
 
-                database.ref('scores/' + user.uid).on('value', snapshot => {
-                    const data = snapshot.val();
-                    const record = data ? data.score : 0;
-                    localStorage.setItem('snake_personal_best', record);
-                    personalBestText.innerText = "Best Score: " + record;
-                });
-            } else {
-                loginBtn.style.display = 'block'; 
-                playerProfile.style.display = 'none';
-                userBadge.style.display = 'none';
-                userBadge.innerText = '';
-                settingsAuthActions.style.display = 'none';
-                accountSettingsBlock.style.display = 'none';
-                accountSetupModal.style.display = 'none';
-            }
-        });
-
-        document.getElementById('save-profile-btn').addEventListener('click', () => {
-            const nameVal = document.getElementById('setup-display-name').value.trim();
-            const usernameVal = document.getElementById('setup-username').value.trim();
-            const user = auth.currentUser;
-
-            if (!nameVal || !usernameVal) {
-                alert("Please fill in both Name and Username.");
-                return;
-            }
-
-            if (user) {
-                database.ref('users/' + user.uid).set({
-                    displayName: nameVal,
-                    username: usernameVal
-                }).then(() => {
+                    database.ref('scores/' + user.uid).on('value', snapshot => {
+                        const data = snapshot.val();
+                        const record = data ? data.score : 0;
+                        localStorage.setItem('snake_personal_best', record);
+                        personalBestText.innerText = "Best Score: " + record;
+                    });
+                } else {
+                    loginBtn.style.display = 'block';
+                    playerProfile.style.display = 'none';
+                    userBadge.style.display = 'none';
+                    userBadge.innerText = '';
+                    settingsAuthActions.style.display = 'none';
+                    accountSettingsBlock.style.display = 'none';
                     accountSetupModal.style.display = 'none';
-                    updateProfileUI(nameVal, usernameVal);
-                });
-            }
-        });
+                }
+            });
 
-        document.getElementById('save-account-btn').addEventListener('click', () => {
-            const nameVal = document.getElementById('edit-display-name').value.trim();
-            const usernameVal = document.getElementById('edit-username').value.trim();
-            const user = auth.currentUser;
+            document.getElementById('save-profile-btn').addEventListener('click', () => {
+                const nameVal = document.getElementById('setup-display-name').value.trim();
+                const usernameVal = document.getElementById('setup-username').value.trim();
+                const user = auth.currentUser;
 
-            if (!nameVal || !usernameVal) {
-                alert("Name and Username cannot be empty.");
-                return;
-            }
-
-            if (user) {
-                database.ref('users/' + user.uid).update({
-                    displayName: nameVal,
-                    username: usernameVal
-                }).then(() => {
-                    updateProfileUI(nameVal, usernameVal);
-                    alert("Account details updated successfully!");
-                });
-            }
-        });
-
-        function updateProfileUI(displayName, username) {
-            playerName.innerText = displayName;
-            userBadge.innerText = displayName + " (@" + username + ")";
-            userBadge.style.display = 'block';
-
-            document.getElementById('edit-display-name').value = displayName;
-            document.getElementById('edit-username').value = username;
-        }
-
-        function showLeaderboard() {
-            leaderboardMenu.style.display = "flex";
-            leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">Fetching live records...</div>';
-
-            database.ref('scores').orderByChild('score').limitToLast(5).once('value', snapshot => {
-                leaderboardList.innerHTML = "";
-                let players = [];
-                snapshot.forEach(childSnapshot => {
-                    players.push({ uid: childSnapshot.key, ...childSnapshot.val() });
-                });
-                players.reverse();
-                if (players.length === 0) {
-                    leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">No scores uploaded yet!</div>';
+                if (!nameVal || !usernameVal) {
+                    alert("Please fill in both Name and Username.");
                     return;
                 }
-                players.forEach((player, index) => {
-                    const item = document.createElement("div");
-                    item.className = "leaderboard-item";
-                    if (auth.currentUser && player.uid === auth.currentUser.uid) {
-                        item.classList.add("current-player");
-                    }
-                    item.innerHTML = `<span>${index + 1}. ${player.name}</span><span>${player.score}</span>`;
-                    leaderboardList.appendChild(item);
-                });
-            });
-        }
 
-        document.getElementById('hub-leaderboard-btn').addEventListener('click', showLeaderboard);
-        document.getElementById('close-leaderboard-btn').addEventListener('click', () => {
-            leaderboardMenu.style.display = "none";
-        });
+                if (user) {
+                    database.ref('users/' + user.uid).set({
+                        displayName: nameVal,
+                        username: usernameVal
+                    }).then(() => {
+                        accountSetupModal.style.display = 'none';
+                        updateProfileUI(nameVal, usernameVal);
+                    });
+                }
+            });
+
+            document.getElementById('save-account-btn').addEventListener('click', () => {
+                const nameVal = document.getElementById('edit-display-name').value.trim();
+                const usernameVal = document.getElementById('edit-username').value.trim();
+                const user = auth.currentUser;
+
+                if (!nameVal || !usernameVal) {
+                    alert("Name and Username cannot be empty.");
+                    return;
+                }
+
+                if (user) {
+                    database.ref('users/' + user.uid).update({
+                        displayName: nameVal,
+                        username: usernameVal
+                    }).then(() => {
+                        updateProfileUI(nameVal, usernameVal);
+                        alert("Account details updated successfully!");
+                    });
+                }
+            });
+
+            function updateProfileUI(displayName, username) {
+                playerName.innerText = displayName;
+                userBadge.innerText = displayName + " (@" + username + ")";
+                userBadge.style.display = 'block';
+
+                document.getElementById('edit-display-name').value = displayName;
+                document.getElementById('edit-username').value = username;
+            }
+
+            function showLeaderboard() {
+                leaderboardMenu.style.display = "flex";
+                leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">Fetching live records...</div>';
+
+                database.ref('scores').orderByChild('score').limitToLast(5).once('value', snapshot => {
+                    leaderboardList.innerHTML = "";
+                    let players = [];
+                    snapshot.forEach(childSnapshot => {
+                        players.push({ uid: childSnapshot.key, ...childSnapshot.val() });
+                    });
+                    players.reverse();
+                    if (players.length === 0) {
+                        leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">No scores uploaded yet!</div>';
+                        return;
+                    }
+                    players.forEach((player, index) => {
+                        const item = document.createElement("div");
+                        item.className = "leaderboard-item";
+                        if (auth.currentUser && player.uid === auth.currentUser.uid) {
+                            item.classList.add("current-player");
+                        }
+                        item.innerHTML = `<span>${index + 1}. ${player.name}</span><span>${player.score}</span>`;
+                        leaderboardList.appendChild(item);
+                    });
+                });
+            }
+
+            document.getElementById('hub-leaderboard-btn').addEventListener('click', showLeaderboard);
+            document.getElementById('close-leaderboard-btn').addEventListener('click', () => {
+                leaderboardMenu.style.display = "none";
+            });
+        })();
 
         loadGlobalSettings();
     </script>
