@@ -118,8 +118,10 @@
         let food = { x: 5, y: 5 };
         let dx = 1; 
         let dy = 0; 
+        let directionQueue = [];
         let score = 0;
         let gameInterval;
+        let countdownTimeout;
         let isPaused = false;
         let isCountingDown = false;
 
@@ -227,7 +229,13 @@
         }
 
         function drawGame() {
-            if (isPaused || isCountingDown) return; 
+            if (isPaused || isCountingDown) return;
+            clearTimeout(gameInterval);
+            if (directionQueue.length > 0) {
+                const nextDir = directionQueue.shift();
+                dx = nextDir.dx;
+                dy = nextDir.dy;
+            }
             updateSnakePosition();
             if (checkGameOver()) { handleGameEnd(); return; }
             checkFoodCollision();
@@ -302,18 +310,20 @@
         }
 
         function startCountdownBeforeResume() {
+            clearTimeout(countdownTimeout);
             isCountingDown = true;
             countdownOverlay.style.display = "flex";
             let timeLeft = 3;
             
             function runTick() {
+                if (!isCountingDown) return;
                 if (timeLeft > 0) {
                     countdownNumber.innerText = timeLeft;
                     countdownNumber.style.animation = 'none';
                     countdownNumber.offsetHeight;
                     countdownNumber.style.animation = 'bounceScale 1s ease-in-out infinite';
                     timeLeft--;
-                    setTimeout(runTick, 1000);
+                    countdownTimeout = setTimeout(runTick, 1000);
                 } else {
                     countdownOverlay.style.display = "none";
                     isCountingDown = false;
@@ -326,8 +336,9 @@
 
         function resetGame() {
             clearTimeout(gameInterval);
+            clearTimeout(countdownTimeout);
             snake = [{ x: 10, y: 10 }];
-            dx = 1; dy = 0; score = 0;
+            dx = 1; dy = 0; directionQueue = []; score = 0;
             document.getElementById("score").innerText = "Score: " + score;
             generateFood();
             isPaused = false;
@@ -340,14 +351,35 @@
         }
 
         function changeDirection(dir) {
-            if (isPaused || isCountingDown) return; 
-            if (dir === 'UP' && dy !== 1) { dx = 0; dy = -1; }
-            if (dir === 'DOWN' && dy !== -1) { dx = 0; dy = 1; }
-            if (dir === 'LEFT' && dx !== 1) { dx = -1; dy = 0; }
-            if (dir === 'RIGHT' && dx !== -1) { dx = 1; dy = 0; }
+            if (isPaused || isCountingDown) return;
+            if (directionQueue.length >= 2) return;
+
+            let nextDx = 0;
+            let nextDy = 0;
+            if (dir === 'UP') { nextDx = 0; nextDy = -1; }
+            else if (dir === 'DOWN') { nextDx = 0; nextDy = 1; }
+            else if (dir === 'LEFT') { nextDx = -1; nextDy = 0; }
+            else if (dir === 'RIGHT') { nextDx = 1; nextDy = 0; }
+            else return;
+
+            const lastDir = directionQueue.length > 0
+                ? directionQueue[directionQueue.length - 1]
+                : { dx, dy };
+
+            // Ignore same direction or 180-degree reversal relative to last queued/current direction
+            if ((nextDx === lastDir.dx && nextDy === lastDir.dy) ||
+                (nextDx === -lastDir.dx && nextDy === -lastDir.dy)) {
+                return;
+            }
+
+            directionQueue.push({ dx: nextDx, dy: nextDy });
         }
 
         window.addEventListener("keydown", e => {
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+                e.preventDefault();
+            }
+            if (e.repeat) return;
             if (e.key === "Escape" || e.key === " ") togglePause();
             if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") changeDirection('UP');
             if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") changeDirection('DOWN');
