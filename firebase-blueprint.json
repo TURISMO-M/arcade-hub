@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Player profile for Retro Snake Game",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the player",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Player display name",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "username": {
+          "type": "string",
+          "description": "Player handle",
+          "minLength": 1,
+          "maxLength": 30,
+          "pattern": "^[a-zA-Z0-9_.\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was last updated"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "username",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ScoreEntry": {
+      "title": "ScoreEntry",
+      "description": "Player best score record for the Retro Snake global leaderboard",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the player",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Public display name shown on the leaderboard",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "score": {
+          "type": "integer",
+          "description": "Player highest Snake score"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when high score was recorded"
+        }
+      },
+      "required": [
+        "uid",
+        "name",
+        "score",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Private player profile documents accessible only to the owning user."
+    },
+    "/scores/{userId}": {
+      "schema": {
+        "$ref": "#/entities/ScoreEntry"
+      },
+      "description": "Global leaderboard best scores, readable for leaderboard display and writable only by the owning verified user."
+    }
+  }
+}

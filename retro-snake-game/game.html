@@ -6,9 +6,6 @@
     <title>Snake Arena</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="firebase-client.js"></script>
 </head>
 <body>
@@ -187,35 +184,50 @@
             }
         }
 
+        let fbClient = null;
         let auth = null;
-        let database = null;
+        let activeDisplayName = '';
 
         window.initSnakeFirebase().then(fb => {
+            fbClient = fb;
             auth = fb.auth;
-            database = fb.database;
 
-            auth.onAuthStateChanged(user => {
+            fb.onAuthChange(async user => {
                 if (user) {
                     document.getElementById('game-account-block').style.display = 'block';
-                    database.ref('users/' + user.uid).once('value', snapshot => {
-                        const data = snapshot.val();
+                    try {
+                        const data = await fb.getUserProfile(user.uid);
                         if (data) {
+                            activeDisplayName = data.displayName || user.displayName || 'Player';
                             document.getElementById('game-edit-name').value = data.displayName || '';
                             document.getElementById('game-edit-username').value = data.username || '';
+                        } else {
+                            activeDisplayName = user.displayName || 'Player';
                         }
-                    });
+
+                        const remoteBest = await fb.getPersonalBest(user.uid);
+                        if (remoteBest > playerBest) {
+                            playerBest = remoteBest;
+                            localStorage.setItem('snake_personal_best', playerBest);
+                            document.getElementById("high-score").innerText = "Best: " + playerBest;
+                        }
+                    } catch (err) {
+                        console.error("Failed to sync player data:", err);
+                    }
+                } else {
+                    document.getElementById('game-account-block').style.display = 'none';
                 }
             });
+        }).catch(err => {
+            console.error("Firebase initialization failed:", err);
         });
 
-        function fetchGlobalScores() {
-            if (!database) return;
+        async function fetchGlobalScores() {
+            if (!fbClient) return;
             leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">Loading...</div>';
-            database.ref('scores').orderByChild('score').limitToLast(5).once('value', snapshot => {
+            try {
+                const players = await fbClient.getTopScores(5);
                 leaderboardList.innerHTML = "";
-                let players = [];
-                snapshot.forEach(child => { players.push({uid: child.key, ...child.val()}); });
-                players.reverse();
 
                 if (players.length === 0) {
                     leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">No scores uploaded yet!</div>';
@@ -225,18 +237,31 @@
                 players.forEach((player, idx) => {
                     const item = document.createElement("div");
                     item.className = "leaderboard-item";
-                    if (auth && auth.currentUser && player.uid === auth.currentUser.uid) item.classList.add("current-player");
-                    item.innerHTML = `<span>${idx + 1}. ${player.name}</span><span>${player.score}</span>`;
+                    if (auth && auth.currentUser && player.uid === auth.currentUser.uid) {
+                        item.classList.add("current-player");
+                    }
+                    const nameSpan = document.createElement("span");
+                    nameSpan.textContent = `${idx + 1}. ${player.name || 'Player'}`;
+                    const scoreSpan = document.createElement("span");
+                    scoreSpan.textContent = String(player.score ?? 0);
+                    item.appendChild(nameSpan);
+                    item.appendChild(scoreSpan);
                     leaderboardList.appendChild(item);
                 });
-            });
+            } catch (err) {
+                leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">Unable to load scores.</div>';
+                console.error(err);
+            }
         }
 
         function saveScoreToDatabase(newScore) {
-            if (!auth || !database) return;
+            if (!fbClient || !auth) return;
             const user = auth.currentUser;
             if (user) {
-                database.ref('scores/' + user.uid).set({ name: user.displayName || 'Player', score: newScore });
+                const nameToSave = activeDisplayName || user.displayName || 'Player';
+                fbClient.saveBestScore(user.uid, nameToSave, newScore).catch(err => {
+                    console.error("Failed to save score to Firestore:", err);
+                });
             }
         }
 
@@ -504,7 +529,7 @@
             }
         });
 
-        document.getElementById("close-settings-btn").addEventListener("click", () => {
+        document.getElementById("close-settings-btn").addEventListener("click", async () => {
             localStorage.setItem('control_type', controlTypeSelect.value);
             localStorage.setItem('control_scale', controlScaleSlider.value);
             localStorage.setItem('control_y', controlYSlider.value);
@@ -513,11 +538,13 @@
             const newName = document.getElementById('game-edit-name').value.trim();
             const newUsername = document.getElementById('game-edit-username').value.trim();
 
-            if (database && user && newName && newUsername) {
-                database.ref('users/' + user.uid).update({
-                    displayName: newName,
-                    username: newUsername
-                });
+            if (fbClient && user && newName && newUsername) {
+                try {
+                    const updated = await fbClient.updateUserProfile(user.uid, newName, newUsername);
+                    activeDisplayName = updated.displayName;
+                } catch (err) {
+                    console.error("Failed to update profile:", err);
+                }
             }
 
             refreshControllerDesign();

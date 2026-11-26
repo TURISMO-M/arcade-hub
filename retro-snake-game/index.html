@@ -6,9 +6,6 @@
     <title>Arcade Hub - Snake Menu</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="firebase-client.js"></script>
 </head>
 <body class="dark-theme">
@@ -52,7 +49,8 @@
             <label>Username:</label>
             <input type="text" id="setup-username" placeholder="@username">
         </div>
-        <button class="menu-btn resume" id="save-profile-btn" style="margin-top: 10px;">Create Profile</button>
+        <div id="setup-status" style="color: #ff6b6b; font-size: 12px; min-height: 16px; text-align: center;"></div>
+        <button class="menu-btn resume" id="save-profile-btn" style="margin-top: 6px;">Create Profile</button>
     </div>
 
     <div id="leaderboardMenu" class="pause-overlay" style="position: fixed;">
@@ -96,6 +94,7 @@
                 <label>Username:</label>
                 <input type="text" id="edit-username">
             </div>
+            <div id="account-status" style="font-size: 12px; min-height: 16px; text-align: center; margin-top: 4px;"></div>
             <button class="menu-btn resume" id="save-account-btn" style="width: 100%; padding: 8px; font-size: 13px; margin-top: 5px;">Update Account</button>
             <button id="delete-account-btn" class="danger-btn" style="margin-top: 8px;">Delete Snake Account</button>
         </div>
@@ -158,64 +157,92 @@
         const accountSettingsBlock = document.getElementById('account-settings-block');
 
         (async function initApp() {
-            const { auth, database, GoogleAuthProvider } = await window.initSnakeFirebase();
+            const fb = await window.initSnakeFirebase();
+            const auth = fb.auth;
+            let unsubscribeBest = null;
+            let deleteConfirmArmed = false;
+            let deleteResetTimer = null;
+
+            const setupStatus = document.getElementById('setup-status');
+            const accountStatus = document.getElementById('account-status');
+
+            function showAccountStatus(msg, isError) {
+                accountStatus.style.color = isError ? '#ff6b6b' : 'var(--accent-color)';
+                accountStatus.textContent = msg;
+            }
 
             loginBtn.addEventListener('click', () => {
-                const provider = new GoogleAuthProvider();
-                provider.setCustomParameters({ prompt: 'select_account' });
-                auth.signInWithPopup(provider).catch(err => {
+                fb.signInWithGoogle().catch(err => {
                     console.error("Authentication Error:", err.message);
                 });
             });
 
             logoutBtn.addEventListener('click', () => {
-                auth.signOut().then(() => {
+                fb.signOutUser().then(() => {
                     localStorage.removeItem('snake_personal_best');
                     window.location.reload();
                 });
             });
 
-            deleteAccountBtn.addEventListener('click', () => {
+            deleteAccountBtn.addEventListener('click', async () => {
                 const user = auth.currentUser;
                 if (!user) return;
 
-                const confirmDelete = confirm("Are you sure you want to delete your Snake Game Account? This will permanently delete your profile data and high scores.");
-                if (confirmDelete) {
-                    const userRef = database.ref('users/' + user.uid);
-                    const scoreRef = database.ref('scores/' + user.uid);
+                if (!deleteConfirmArmed) {
+                    deleteConfirmArmed = true;
+                    deleteAccountBtn.textContent = "Tap again to confirm delete";
+                    showAccountStatus("This permanently deletes your profile & scores.", true);
+                    clearTimeout(deleteResetTimer);
+                    deleteResetTimer = setTimeout(() => {
+                        deleteConfirmArmed = false;
+                        deleteAccountBtn.textContent = "Delete Snake Account";
+                    }, 4000);
+                    return;
+                }
 
-                    Promise.all([userRef.remove(), scoreRef.remove()]).then(() => {
-                        localStorage.removeItem('snake_personal_best');
-                        alert("Your Snake Game profile and scores have been deleted.");
-                        auth.signOut().then(() => {
-                            window.location.reload();
-                        });
-                    }).catch(err => {
-                        alert("Error deleting account: " + err.message);
-                    });
+                clearTimeout(deleteResetTimer);
+                deleteConfirmArmed = false;
+                deleteAccountBtn.disabled = true;
+
+                try {
+                    await fb.deleteUserAccountData(user.uid);
+                    localStorage.removeItem('snake_personal_best');
+                    await fb.signOutUser();
+                    window.location.reload();
+                } catch (err) {
+                    deleteAccountBtn.disabled = false;
+                    deleteAccountBtn.textContent = "Delete Snake Account";
+                    showAccountStatus("Error deleting account.", true);
+                    console.error(err);
                 }
             });
 
-            auth.onAuthStateChanged(user => {
-                if (user) {
-                    database.ref('users/' + user.uid).once('value', snapshot => {
-                        const profile = snapshot.val();
-                        if (!profile || !profile.username) {
-                            document.getElementById('setup-display-name').value = user.displayName || '';
-                            accountSetupModal.style.display = 'flex';
-                        } else {
-                            updateProfileUI(profile.displayName, profile.username);
-                        }
-                    });
+            fb.onAuthChange(async user => {
+                if (unsubscribeBest) {
+                    unsubscribeBest();
+                    unsubscribeBest = null;
+                }
 
+                if (user) {
                     loginBtn.style.display = 'none';
                     playerProfile.style.display = 'block';
                     settingsAuthActions.style.display = 'block';
                     accountSettingsBlock.style.display = 'block';
 
-                    database.ref('scores/' + user.uid).on('value', snapshot => {
-                        const data = snapshot.val();
-                        const record = data ? data.score : 0;
+                    try {
+                        const profile = await fb.getUserProfile(user.uid);
+                        if (!profile || !profile.username) {
+                            document.getElementById('setup-display-name').value = user.displayName || '';
+                            setupStatus.textContent = '';
+                            accountSetupModal.style.display = 'flex';
+                        } else {
+                            updateProfileUI(profile.displayName, profile.username);
+                        }
+                    } catch (err) {
+                        console.error("Failed to load user profile:", err);
+                    }
+
+                    unsubscribeBest = fb.subscribePersonalBest(user.uid, record => {
                         localStorage.setItem('snake_personal_best', record);
                         personalBestText.innerText = "Best Score: " + record;
                     });
@@ -230,45 +257,46 @@
                 }
             });
 
-            document.getElementById('save-profile-btn').addEventListener('click', () => {
+            document.getElementById('save-profile-btn').addEventListener('click', async () => {
                 const nameVal = document.getElementById('setup-display-name').value.trim();
                 const usernameVal = document.getElementById('setup-username').value.trim();
                 const user = auth.currentUser;
 
                 if (!nameVal || !usernameVal) {
-                    alert("Please fill in both Name and Username.");
+                    setupStatus.textContent = "Please fill in both Name and Username.";
                     return;
                 }
 
                 if (user) {
-                    database.ref('users/' + user.uid).set({
-                        displayName: nameVal,
-                        username: usernameVal
-                    }).then(() => {
+                    try {
+                        setupStatus.textContent = '';
+                        const saved = await fb.createUserProfile(user.uid, nameVal, usernameVal);
                         accountSetupModal.style.display = 'none';
-                        updateProfileUI(nameVal, usernameVal);
-                    });
+                        updateProfileUI(saved.displayName, saved.username);
+                    } catch (err) {
+                        setupStatus.textContent = err.message || "Failed to create profile.";
+                    }
                 }
             });
 
-            document.getElementById('save-account-btn').addEventListener('click', () => {
+            document.getElementById('save-account-btn').addEventListener('click', async () => {
                 const nameVal = document.getElementById('edit-display-name').value.trim();
                 const usernameVal = document.getElementById('edit-username').value.trim();
                 const user = auth.currentUser;
 
                 if (!nameVal || !usernameVal) {
-                    alert("Name and Username cannot be empty.");
+                    showAccountStatus("Name and Username cannot be empty.", true);
                     return;
                 }
 
                 if (user) {
-                    database.ref('users/' + user.uid).update({
-                        displayName: nameVal,
-                        username: usernameVal
-                    }).then(() => {
-                        updateProfileUI(nameVal, usernameVal);
-                        alert("Account details updated successfully!");
-                    });
+                    try {
+                        const updated = await fb.updateUserProfile(user.uid, nameVal, usernameVal);
+                        updateProfileUI(updated.displayName, updated.username);
+                        showAccountStatus("Account details updated!", false);
+                    } catch (err) {
+                        showAccountStatus(err.message || "Update failed.", true);
+                    }
                 }
             });
 
@@ -281,17 +309,13 @@
                 document.getElementById('edit-username').value = username;
             }
 
-            function showLeaderboard() {
+            async function showLeaderboard() {
                 leaderboardMenu.style.display = "flex";
                 leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">Fetching live records...</div>';
 
-                database.ref('scores').orderByChild('score').limitToLast(5).once('value', snapshot => {
+                try {
+                    const players = await fb.getTopScores(5);
                     leaderboardList.innerHTML = "";
-                    let players = [];
-                    snapshot.forEach(childSnapshot => {
-                        players.push({ uid: childSnapshot.key, ...childSnapshot.val() });
-                    });
-                    players.reverse();
                     if (players.length === 0) {
                         leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">No scores uploaded yet!</div>';
                         return;
@@ -302,10 +326,18 @@
                         if (auth.currentUser && player.uid === auth.currentUser.uid) {
                             item.classList.add("current-player");
                         }
-                        item.innerHTML = `<span>${index + 1}. ${player.name}</span><span>${player.score}</span>`;
+                        const nameSpan = document.createElement("span");
+                        nameSpan.textContent = `${index + 1}. ${player.name || 'Player'}`;
+                        const scoreSpan = document.createElement("span");
+                        scoreSpan.textContent = String(player.score ?? 0);
+                        item.appendChild(nameSpan);
+                        item.appendChild(scoreSpan);
                         leaderboardList.appendChild(item);
                     });
-                });
+                } catch (err) {
+                    leaderboardList.innerHTML = '<div class="leaderboard-itemLoading">Unable to load leaderboard.</div>';
+                    console.error(err);
+                }
             }
 
             document.getElementById('hub-leaderboard-btn').addEventListener('click', showLeaderboard);
